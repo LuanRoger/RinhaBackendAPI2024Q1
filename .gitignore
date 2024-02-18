@@ -2,4 +2,7 @@ bin/
 obj/
 /packages/
 riderModule.iml
+
+# InteliJ IDEA
 /_ReSharper.Caches/
+/.idea/
