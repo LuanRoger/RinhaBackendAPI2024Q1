@@ -3,9 +3,9 @@
 public class TransacaoModel
 {
     public int id { get; set; }
-    public int valor { get; set; }
-    public int tipo { get; set; }
-    public string descricao { get; set; } = string.Empty;
-    public DateTime realizadoEm { get; set; }
-    public int clienteId { get; set; }
+    public int valor { get; init; }
+    public short tipo { get; init; }
+    public string descricao { get; init; } = string.Empty;
+    public DateTime realizadoEm { get; init; }
+    public int clienteId { get; init; }
 }
