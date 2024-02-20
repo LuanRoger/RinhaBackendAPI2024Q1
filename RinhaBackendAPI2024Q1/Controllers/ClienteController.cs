@@ -12,7 +12,7 @@ namespace RinhaBackendAPI2024Q1.Controllers;
 
 public class ClienteController(
     IValidator<CreateNewTransacaoRequest> createNewTransacaoRequestValidator,
-    NpgsqlConnection connection
+    NpgsqlDataSource dataSource
     ) : IClienteController
 {
     public async Task<CreateNewTransacaoResponse> CreateTransacaoCliente(int clienteId, CreateNewTransacaoRequest request)
@@ -21,7 +21,7 @@ public class ClienteController(
         if(!isValid.IsValid)
             throw new InvalidTransacaoRequestException();
 
-        await connection.OpenAsync();
+        await using NpgsqlConnection connection = await dataSource.OpenConnectionAsync();
         
         ClienteRepository clienteRepository = new(connection);
         TransacoesRepository transacoesRepository = new(connection);
@@ -46,12 +46,17 @@ public class ClienteController(
             realizadoEm = DateTime.UtcNow,
             clienteId = clienteId
         };
+
+        await using (NpgsqlTransaction transacaoTransaction = await connection.BeginTransactionAsync())
+        {
+            await transacoesRepository.AddTransacao(newTransacao, transacaoTransaction);
+            if(isCredit)
+                await clienteRepository.CreditarSaldo(clienteId, request.valor, transacaoTransaction);
+            else
+                await clienteRepository.DebitarSaldo(clienteId, request.valor, transacaoTransaction);
         
-        await transacoesRepository.AddTransacao(newTransacao);
-        if(isCredit)
-            await clienteRepository.CreditarSaldo(clienteId, request.valor);
-        else
-            await clienteRepository.DebitarSaldo(clienteId, request.valor);
+            await transacaoTransaction.CommitAsync();
+        }
         await connection.CloseAsync();
         
         CreateNewTransacaoResponse response = new()
@@ -64,7 +69,7 @@ public class ClienteController(
     }
     public async Task<ClienteExtratoResponse> GenerateClienteExtrato(int clienteId)
     {
-        await connection.OpenAsync();
+        await using NpgsqlConnection connection = await dataSource.OpenConnectionAsync();
         
         ClienteRepository clienteRepository = new(connection);
         TransacoesRepository transacoesRepository = new(connection);

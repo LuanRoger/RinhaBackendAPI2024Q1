@@ -6,6 +6,6 @@ namespace RinhaBackendAPI2024Q1.Repositories;
 public interface ITransacoesRepository
 {
     public NpgsqlConnection connection { get; }
-    public Task AddTransacao(TransacaoModel model);
-    public Task<IEnumerable<TransacaoModel>> GetTransacoesByClienteId(int clienteId, int limite = 10);
+    public Task AddTransacao(TransacaoModel model, NpgsqlTransaction? transaction = null);
+    public Task<IEnumerable<TransacaoModel>> GetTransacoesByClienteId(int clienteId);
 }
