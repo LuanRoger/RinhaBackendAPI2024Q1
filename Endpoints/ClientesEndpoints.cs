@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using RinhaBackendAPI2024Q1.Models;
+using RinhaBackendAPI2024Q1.Controllers;
+using RinhaBackendAPI2024Q1.Exceptions;
 using RinhaBackendAPI2024Q1.Models.Requests;
-using RinhaBackendAPI2024Q1.Repositories;
-using RinhaBackendAPI2024Q1.Utils.Extensions;
+using Exception = System.Exception;
 
 namespace RinhaBackendAPI2024Q1.Endpoints;
 
@@ -16,60 +16,34 @@ public static class ClientesEndpoints
 
         return builder;
     }
-    private static IResult GetClienteExtrato(HttpContext context)
-    {
-        return Results.Ok();
+   async private static Task<IResult> GetClienteExtrato(HttpContext context,
+       [FromRoute] int id,
+       [FromServices] IClienteController controller)
+   {
+       ClienteExtratoResponse response;
+       try
+       {
+           response = await controller.GenerateClienteExtrato(id);
+       }
+       catch (Exception) { return Results.NotFound(); }
+       
+        return Results.Ok(response);
     }
-    async private static Task<IResult> PostClientesTransacoes(HttpContext context,
+   async private static Task<IResult> PostClientesTransacoes(HttpContext context,
         [FromRoute] int id,
         [FromBody] CreateNewTransacaoRequest request,
-        [FromServices] ITransacoesRepository transacoesRepository,
-        [FromServices] IClienteRepository clienteRepository)
+        [FromServices] IClienteController controller)
     {
-        ClienteModel cliente;
+        CreateNewTransacaoResponse response;
         try
         {
-            cliente = await clienteRepository.GetClienteById(id);
+            response = await controller.CreateTransacaoCliente(id, request);
         }
-        catch(Exception) { return Results.NotFound(); }
-        bool isValid = request.tipo is 'c' or 'd';
-        if(!isValid) return Results.BadRequest();
-
-        bool isCredit = request.tipo == 'c';
-        int futureSaldo = isCredit ? cliente.saldo + request.valor : cliente.saldo - request.valor;
-        if(!isCredit)
+        catch (Exception e) when (e is InvalidTransacaoRequestException or UnboundClientLimitException)
         {
-            if(futureSaldo < -cliente.limite)
-            {
-                var dumyEntiy = new
-                {
-                    saldo_futuro = futureSaldo,
-                    limite = cliente.limite
-                };
-                return Results.UnprocessableEntity(dumyEntiy);
-            }
+            return Results.UnprocessableEntity();
         }
-        
-        TransacaoModel newTransacao = new()
-        {
-            valor = request.valor,
-            tipo = request.tipo.ConvertCharToIntBasedOnTransacaoType(),
-            descricao = request.descricao,
-            realizadoEm = DateTime.UtcNow,
-            clienteId = id
-        };
-        
-        await transacoesRepository.AddTransacao(newTransacao);
-        if(isCredit)
-            await clienteRepository.CreditarSaldo(id, request.valor);
-        else
-            await clienteRepository.DebitarSaldo(id, request.valor);
-
-        CreateNewTransacaoResponse response = new()
-        {
-            limite = cliente.limite,
-            saldo = futureSaldo
-        };
+        catch (Exception) { return Results.NotFound(); }
         
         return Results.Ok(response);
     }
