@@ -2,11 +2,13 @@
 
 namespace RinhaBackendAPI2024Q1.Models.Requests;
 
-public class ClienteExtratoResponse
+public class ClienteExtratoResponse(ClienteExtratoSaldo saldo, 
+    IEnumerable<ClienteUltimaTransacoes> ultimasTransacoes)
 {
-    public ClienteExtratoSaldo saldo { get; init; } = null!;
+    public ClienteExtratoSaldo saldo { get; init; } = saldo;
+
     [JsonPropertyName("ultimas_transacoes")]
-    public ClienteUltimaTransacoes ultimasTransacoes { get; init; } = null!;
+    public IEnumerable<ClienteUltimaTransacoes> ultimasTransacoes { get; init; } = ultimasTransacoes;
 }
 
 public class ClienteExtratoSaldo

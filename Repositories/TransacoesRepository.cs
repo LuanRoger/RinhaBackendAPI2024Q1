@@ -14,4 +14,15 @@ public class TransacoesRepository(NpgsqlDataSource dataSource) : ITransacoesRepo
                                "(@valor, @tipo, @descricao, @realizadoEm, @clienteId)";
         await connection.ExecuteAsync(command, model);
     }
+    
+    public async Task<IEnumerable<TransacaoModel>> GetTransacoesByClienteId(int clienteId)
+    {
+        await using NpgsqlConnection connection = dataSource.CreateConnection();
+        
+        const string command = "SELECT * FROM transacoes WHERE clienteId = @clienteId LIMIT 10";
+        var transacoesCliente = await connection
+            .QueryAsync<TransacaoModel>(command, new { clienteId });
+        
+        return transacoesCliente;
+    }
 }

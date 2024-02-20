@@ -20,7 +20,6 @@ public class ClienteRepository(NpgsqlDataSource dataSource) : IClienteRepository
     {
         await using NpgsqlConnection connection = dataSource.CreateConnection();
         const string command = "UPDATE clientes SET saldo = saldo + @valor WHERE id = @id";
-        const string getNewSaldoCommand = "SELECT saldo FROM clientes WHERE id = @id";
         
         await connection.ExecuteAsync(command, new { id, valor });
     }
@@ -29,7 +28,6 @@ public class ClienteRepository(NpgsqlDataSource dataSource) : IClienteRepository
     {
         await using NpgsqlConnection connection = dataSource.CreateConnection();
         const string command = "UPDATE clientes SET saldo = saldo - @valor WHERE id = @id";
-        const string getNewSaldoCommand = "SELECT saldo FROM clientes WHERE id = @id";
         
         await connection.ExecuteAsync(command, new { id, valor });
     }

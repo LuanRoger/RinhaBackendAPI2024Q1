@@ -4,7 +4,4 @@ namespace RinhaBackendAPI2024Q1.Models.Requests.Json;
 
 [JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Metadata)]
 [JsonSerializable(typeof(CreateNewTransacaoRequest))]
-internal partial class CreateNewTransacaoRequestJson : JsonSerializerContext
-{
-    
-}
+internal partial class CreateNewTransacaoRequestJson : JsonSerializerContext;
