@@ -10,7 +10,7 @@ services:
     ports:
       - "5000:8080"
     environment:
-      - POSTGRES_CONNECTION=Host=rinha-db;Port=5432;Database=postgres;Username=admin;Password=admin
+      - POSTGRES_CONNECTION=Host=rinha-db;Port=5432;Database=postgres;Username=admin;Password=admin;
     networks:
       - api-network
       - proxy

@@ -13,6 +13,11 @@ CREATE TABLE IF NOT EXISTS public.Transacoes (
     clienteId integer REFERENCES Clientes(id)
 );
 
+CREATE INDEX index_clienteId_transacoes ON public.Transacoes
+(
+    clienteId ASC
+);
+
 INSERT INTO public.Clientes (saldo, limite) VALUES
 	 (0, 100000),
 	 (0, 80000),
