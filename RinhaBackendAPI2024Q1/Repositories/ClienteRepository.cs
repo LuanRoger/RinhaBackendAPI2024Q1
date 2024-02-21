@@ -1,11 +1,10 @@
 ﻿using Npgsql;
 using NpgsqlTypes;
-using RinhaBackendAPI2024Q1.Endpoints;
 using RinhaBackendAPI2024Q1.Models;
 
 namespace RinhaBackendAPI2024Q1.Repositories;
 
-public class ClienteRepository(NpgsqlConnection connection) : IClienteRepository
+public class ClienteRepository(NpgsqlConnection connection)
 {
     public NpgsqlConnection connection { get; } = connection;
 
@@ -21,7 +20,7 @@ public class ClienteRepository(NpgsqlConnection connection) : IClienteRepository
             return null;
 
         ClienteModel? clienteModel = null;
-        while (await clienteReader.ReadAsync())
+        if(await clienteReader.ReadAsync())
         {
             clienteModel = new()
             {
@@ -33,24 +32,32 @@ public class ClienteRepository(NpgsqlConnection connection) : IClienteRepository
         
         return clienteModel;
     }
-    
-    public async Task CreditarSaldo(int id, int valor, NpgsqlTransaction? transaction = null)
+
+    public async Task CreateTransacaoForClienteAndUpdateSaldo(int id, int valor, bool isCredit, TransacaoModel model)
     {
-        const string command = "UPDATE clientes SET saldo = saldo + $1 WHERE id = $2";
-        await using NpgsqlCommand creditCommand = new(command, connection);
-        creditCommand.Parameters.Add(new() { Value = valor, NpgsqlDbType = NpgsqlDbType.Integer });
-        creditCommand.Parameters.Add(new() { Value = id, NpgsqlDbType = NpgsqlDbType.Integer });
+        const string creditCommand = "UPDATE clientes SET saldo = saldo + $1 WHERE id = $2";
+        const string debitCommand = "UPDATE clientes SET saldo = saldo - $1 WHERE id = $2";
+        const string insertTransacaoCommand = "INSERT INTO transacoes (valor, tipo, descricao, realizadoEm, clienteId) VALUES " +
+                               "($1, $2, $3, $4, $5)";
+
+        await using NpgsqlTransaction transacaoTransaction = await connection.BeginTransactionAsync();        
         
-        await creditCommand.ExecuteNonQueryAsync();
-    }
-    
-    public async Task DebitarSaldo(int id, int valor, NpgsqlTransaction? transaction = null)
-    {
-        const string command = "UPDATE clientes SET saldo = saldo - $1 WHERE id = $2";
-        await using NpgsqlCommand debitCommand = new(command, connection);
-        debitCommand.Parameters.Add(new() { Value = valor, NpgsqlDbType = NpgsqlDbType.Integer });
-        debitCommand.Parameters.Add(new() { Value = id, NpgsqlDbType = NpgsqlDbType.Integer });
+        await using NpgsqlCommand updateSaldoCommand = 
+            new(isCredit ? creditCommand : debitCommand, connection, transacaoTransaction);
+        updateSaldoCommand.Parameters.Add(new() { Value = valor });
+        updateSaldoCommand.Parameters.Add(new() { Value = id });
+        await updateSaldoCommand.PrepareAsync();
+        await updateSaldoCommand.ExecuteNonQueryAsync();
         
-        await debitCommand.ExecuteNonQueryAsync();
+        await using NpgsqlCommand insertCommand = new(insertTransacaoCommand, connection, transacaoTransaction);
+        insertCommand.Parameters.Add(new() { Value = model.valor });
+        insertCommand.Parameters.Add(new() { Value = model.tipo });
+        insertCommand.Parameters.Add(new() { Value = model.descricao });
+        insertCommand.Parameters.Add(new() { Value = model.realizadoEm });
+        insertCommand.Parameters.Add(new() { Value = model.clienteId });
+        await insertCommand.PrepareAsync();
+        await insertCommand.ExecuteNonQueryAsync();
+        
+        await transacaoTransaction.CommitAsync();
     }
 }
