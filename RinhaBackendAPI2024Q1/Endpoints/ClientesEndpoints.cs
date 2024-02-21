@@ -25,7 +25,7 @@ public static class ClientesEndpoints
        {
            response = await controller.GenerateClienteExtrato(id);
        }
-       catch (Exception) { return Results.NotFound(); }
+       catch(ClientDoesNotExistsException) { return Results.NotFound(); }
        
         return Results.Ok(response);
     }
@@ -43,7 +43,7 @@ public static class ClientesEndpoints
         {
             return Results.UnprocessableEntity();
         }
-        catch (Exception) { return Results.NotFound(); }
+        catch (ClientDoesNotExistsException) { return Results.NotFound(); }
         
         return Results.Ok(response);
     }

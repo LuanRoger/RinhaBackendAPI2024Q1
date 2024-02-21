@@ -13,12 +13,10 @@ public class CreateNewTransacaoRequestValidator : AbstractValidator<CreateNewTra
             .MaximumLength(10);
 
         RuleFor(f => f.valor)
-            .NotNull()
-            .NotEmpty();
+            .GreaterThan(0)
+            .Must(f => f % 1 == 0);
 
         RuleFor(f => f.tipo)
-            .NotNull()
-            .NotEmpty()
             .Must(f => f is 'c' or 'd');
     }
 }

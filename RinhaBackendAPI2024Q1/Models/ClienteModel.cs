@@ -1,4 +1,4 @@
-﻿namespace RinhaBackendAPI2024Q1.Endpoints;
+﻿namespace RinhaBackendAPI2024Q1.Models;
 
 public class ClienteModel
 {

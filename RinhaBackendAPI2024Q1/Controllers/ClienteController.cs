@@ -1,6 +1,6 @@
 ﻿using FluentValidation;
 using FluentValidation.Results;
-using RinhaBackendAPI2024Q1.Endpoints;
+using Npgsql;
 using RinhaBackendAPI2024Q1.Exceptions;
 using RinhaBackendAPI2024Q1.Models;
 using RinhaBackendAPI2024Q1.Models.Requests;
@@ -10,9 +10,8 @@ using RinhaBackendAPI2024Q1.Utils.Extensions;
 namespace RinhaBackendAPI2024Q1.Controllers;
 
 public class ClienteController(
-    ITransacoesRepository transacoesRepository, 
-    IClienteRepository clienteRepository,
-    IValidator<CreateNewTransacaoRequest> createNewTransacaoRequestValidator
+    IValidator<CreateNewTransacaoRequest> createNewTransacaoRequestValidator,
+    NpgsqlDataSource dataSource
     ) : IClienteController
 {
     public async Task<CreateNewTransacaoResponse> CreateTransacaoCliente(int clienteId, CreateNewTransacaoRequest request)
@@ -20,30 +19,33 @@ public class ClienteController(
         ValidationResult isValid = await createNewTransacaoRequestValidator.ValidateAsync(request);
         if(!isValid.IsValid)
             throw new InvalidTransacaoRequestException();
-        
-        //TODO: Verificar se o cliente existe
-        ClienteModel cliente = await clienteRepository.GetClienteById(clienteId);
 
-        bool isCredit = request.isCredit;
-        int futureSaldo = isCredit ? cliente.saldo + request.valor : cliente.saldo - request.valor;
-        if(!isCredit && futureSaldo < -cliente.limite)
-            throw new UnboundClientLimitException();
-        
-        TransacaoModel newTransacao = new()
+        ClienteModel? cliente;
+        int futureSaldo;
+        await using (NpgsqlConnection connection = await dataSource.OpenConnectionAsync())
         {
-            valor = request.valor,
-            tipo = request.tipo.ConvertCharToIntBasedOnTransacaoType(),
-            descricao = request.descricao,
-            realizadoEm = DateTime.UtcNow,
-            clienteId = clienteId
-        };
+            ClienteRepository clienteRepository = new(connection);
+            cliente = await clienteRepository.GetClienteById(clienteId);
+            if(cliente is null)
+                throw new ClientDoesNotExistsException(clienteId);
         
-        await transacoesRepository.AddTransacao(newTransacao);
-        if(isCredit)
-            await clienteRepository.CreditarSaldo(clienteId, request.valor);
-        else
-            await clienteRepository.DebitarSaldo(clienteId, request.valor);
-
+            bool isCredit = request.isCredit;
+            futureSaldo = isCredit ? cliente.saldo + request.valor : cliente.saldo - request.valor;
+            if(!isCredit && futureSaldo < -cliente.limite)
+                throw new UnboundClientLimitException();
+        
+            TransacaoModel newTransacao = new()
+            {
+                valor = request.valor,
+                tipo = request.tipo.ConvertCharToIntBasedOnTransacaoType(),
+                descricao = request.descricao,
+                realizadoEm = DateTime.UtcNow,
+                clienteId = clienteId
+            };
+        
+            await clienteRepository.CreateTransacaoForClienteAndUpdateSaldo(clienteId, request.valor, isCredit, newTransacao);
+        }
+        
         CreateNewTransacaoResponse response = new()
         {
             limite = cliente.limite,
@@ -54,11 +56,25 @@ public class ClienteController(
     }
     public async Task<ClienteExtratoResponse> GenerateClienteExtrato(int clienteId)
     {
-        //TODO: Verificar se o cliente existe
-        ClienteModel cliente = await clienteRepository.GetClienteById(clienteId);
-        
-        var transacoesCliente = await transacoesRepository
-            .GetTransacoesByClienteId(clienteId);
+        ClienteModel? cliente;
+        IEnumerable<TransacaoModel> transacoesCliente;
+        await using (NpgsqlConnection connection = await dataSource.OpenConnectionAsync())
+        {
+            ClienteRepository clienteRepository = new(connection);
+            TransacoesRepository transacoesRepository = new(connection);
+            
+            try
+            {
+                cliente = await clienteRepository.GetClienteById(clienteId);
+                if(cliente is null)
+                    throw new ClientDoesNotExistsException(clienteId);
+
+                transacoesCliente = await transacoesRepository
+                    .GetTransacoesByClienteId(clienteId);
+            }
+            // ReSharper disable once RedundantCatchClause
+            catch (ClientDoesNotExistsException) { throw; }
+        }
        
         var ultimaTransacoes = transacoesCliente.Select(f => 
             new ClienteUltimaTransacoes
