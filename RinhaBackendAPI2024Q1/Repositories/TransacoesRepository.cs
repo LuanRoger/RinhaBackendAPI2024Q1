@@ -1,5 +1,4 @@
 ﻿using Npgsql;
-using NpgsqlTypes;
 using RinhaBackendAPI2024Q1.Models;
 
 namespace RinhaBackendAPI2024Q1.Repositories;

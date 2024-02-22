@@ -1,14 +1,12 @@
-using FluentValidation;
-using Npgsql;
-using RinhaBackendAPI2024Q1.Controllers;
 using RinhaBackendAPI2024Q1.Endpoints;
-using RinhaBackendAPI2024Q1.Models.Requests;
 using RinhaBackendAPI2024Q1.Models.Requests.Json;
-using RinhaBackendAPI2024Q1.Repositories;
 using RinhaBackendAPI2024Q1.Utils.Environment;
-using RinhaBackendAPI2024Q1.Validators;
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.AddServerHeader = false;
+});
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.TypeInfoResolverChain.Insert(0, CreateNewTransacaoRequestJson.Default);
@@ -18,10 +16,6 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 builder.Services.AddNpgsqlSlimDataSource(EnvVars.GetConnectionString());
-
-builder.Services.AddScoped<IValidator<CreateNewTransacaoRequest>, CreateNewTransacaoRequestValidator>();
-
-builder.Services.AddScoped<IClienteController, ClienteController>();
 
 WebApplication app = builder.Build();
 
